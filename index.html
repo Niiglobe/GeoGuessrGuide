@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Guide GeoGuessr – Pays (Supabase)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-50 text-zinc-900">
+  <header class="mx-auto max-w-6xl px-4 py-8">
+    <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">Guide GeoGuessr – Pays</h1>
+    <p class="mt-1 text-zinc-600">Recherche + filtres. Données stockées dans une base <span class="font-semibold">Supabase (PostgreSQL)</span>.</p>
+
+    <!-- Toolbar -->
+    <div class="mt-6 flex flex-col gap-3 md:flex-row md:items-center">
+      <div class="flex-1">
+        <input id="search" type="text" placeholder="Rechercher: pays, capitale, domaine, indicatif…"
+               class="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 outline-none focus:border-zinc-400" />
+      </div>
+      <select id="continent" class="rounded-xl border border-zinc-300 bg-white px-3 py-3">
+        <option value="">Tous les continents</option>
+        <option>Afrique</option>
+        <option>Amérique</option>
+        <option>Asie</option>
+        <option>Europe</option>
+        <option>Océanie</option>
+      </select>
+      <select id="indexFilter" class="rounded-xl border border-zinc-300 bg-white px-3 py-3">
+        <option value="">Tous les indices</option>
+        <option value="plates">Plaques</option>
+        <option value="language">Langue</option>
+        <option value="road">Route</option>
+        <option value="currency">Monnaie</option>
+        <option value="phone">Téléphone</option>
+        <option value="writing">Écriture</option>
+        <option value="bollard">Poteaux/Bornes</option>
+        <option value="camera">Caméra</option>
+      </select>
+      <button id="openAdd" class="rounded-xl bg-black px-4 py-3 text-white hover:bg-zinc-800">Ajouter un pays</button>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-4 pb-24">
+    <div id="status" class="mb-2 text-sm text-zinc-600"></div>
+    <div id="count" class="mb-3 text-sm text-zinc-600"></div>
+    <div id="list" class="space-y-6"></div>
+  </main>
+
+  <!-- Dialog: add country -->
+  <dialog id="addDialog" class="rounded-2xl p-0 w-full max-w-3xl">
+    <form method="dialog" class="p-6">
+      <div class="flex items-start justify-between">
+        <h2 class="text-xl font-semibold">Ajouter / Modifier un pays</h2>
+        <button class="rounded-md p-1 text-zinc-500 hover:bg-zinc-100" value="cancel" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+        <div>
+          <label class="text-xs text-zinc-600">Code (2 lettres) *</label>
+          <input id="f_code" class="w-full rounded-lg border px-3 py-2" placeholder="FR" required />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Nom *</label>
+          <input id="f_name" class="w-full rounded-lg border px-3 py-2" placeholder="France" required />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Continent</label>
+          <input id="f_continent" class="w-full rounded-lg border px-3 py-2" placeholder="Europe" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Drapeau (URL)</label>
+          <input id="f_flag" class="w-full rounded-lg border px-3 py-2" placeholder="https://flagcdn.com/w40/fr.png" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Capitale</label>
+          <input id="f_capital" class="w-full rounded-lg border px-3 py-2" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Domaine (TLD)</label>
+          <input id="f_tld" class="w-full rounded-lg border px-3 py-2" placeholder=".fr" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Téléphone (indicatif)</label>
+          <input id="f_phone" class="w-full rounded-lg border px-3 py-2" placeholder="+33" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Langue</label>
+          <input id="f_language" class="w-full rounded-lg border px-3 py-2" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Écriture</label>
+          <input id="f_writing" class="w-full rounded-lg border px-3 py-2" placeholder="Latin/Cyrillique" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Plaques</label>
+          <input id="f_plates" class="w-full rounded-lg border px-3 py-2" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Rue (lignes…)</label>
+          <input id="f_street" class="w-full rounded-lg border px-3 py-2" placeholder="Lignes blanches" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Unité distance</label>
+          <input id="f_distance_unit" class="w-full rounded-lg border px-3 py-2" placeholder="Km / Miles" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Monnaie</label>
+          <input id="f_currency" class="w-full rounded-lg border px-3 py-2" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Voiture (marques typiques)</label>
+          <input id="f_car" class="w-full rounded-lg border px-3 py-2" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Caméra</label>
+          <input id="f_camera" class="w-full rounded-lg border px-3 py-2" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Route</label>
+          <input id="f_road" class="w-full rounded-lg border px-3 py-2" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Poteau/Borne</label>
+          <input id="f_bollard" class="w-full rounded-lg border px-3 py-2" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Pancartes</label>
+          <input id="f_signs" class="w-full rounded-lg border px-3 py-2" />
+        </div>
+        <div>
+          <label class="text-xs text-zinc-600">Passage piéton</label>
+          <input id="f_crosswalk" class="w-full rounded-lg border px-3 py-2" />
+        </div>
+        <div class="md:col-span-2">
+          <label class="text-xs text-zinc-600">Notes</label>
+          <textarea id="f_notes" class="w-full rounded-lg border px-3 py-2 h-20"></textarea>
+        </div>
+      </div>
+
+      <div class="mt-4 flex justify-end gap-3">
+        <button value="cancel" class="rounded-xl border px-4 py-2">Annuler</button>
+        <button id="saveCountry" class="rounded-xl bg-black px-4 py-2 text-white">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+    // === CONFIGURE ICI ===
+    const SUPABASE_URL = 'https://aguweahtwwxoamczhzfv.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFndXdlYWh0d3d4b2FtY3poemZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDc1NTgsImV4cCI6MjA3NTQyMzU1OH0.19VgxcQPtmFG0Ni41y4_ScItk84kw_ZxPy2NjbbSeW4'
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    // UI helpers
+    const $ = (s, r=document) => r.querySelector(s)
+    const row = (label, val) => val ? `<div class="grid grid-cols-12 gap-2 text-sm"><div class="col-span-12 sm:col-span-3 font-semibold text-zinc-700">${label}</div><div class="col-span-12 sm:col-span-9 text-zinc-800">${val}</div></div>` : ''
+    const norm = s => (s||'').toString().toLowerCase()
+
+    const statusEl = $('#status')
+    const listEl = $('#list')
+
+    async function fetchCountries(){
+      const { data, error } = await supabase.from('countries').select('*').order('name')
+      if(error){ statusEl.textContent = 'Erreur chargement: ' + error.message; return [] }
+      statusEl.textContent = '• connecté à Supabase'
+      return data || []
+    }
+
+    function render(countries){
+      $('#count').textContent = `${countries.length} pays`
+      listEl.innerHTML = ''
+      countries.forEach(c => {
+        const card = document.createElement('section')
+        card.className = 'rounded-2xl bg-white p-5 shadow'
+        card.innerHTML = `
+          <div class="flex items-center gap-3">
+            <div class="text-lg md:text-xl font-bold flex items-center gap-3">
+              <span class="text-zinc-500 w-10">${c.code || ''}</span>
+              ${c.flag ? `<img class=\"w-11 h-8 object-cover rounded\" alt=\"drapeau\" src=\"${c.flag}\">` : ''}
+              <span>${c.name || ''}</span>
+            </div>
+            <span class="ml-auto text-xs text-zinc-600">${c.continent || ''}</span>
+          </div>
+          <div class="mt-4 space-y-2">
+            ${row('Capitale', c.capital)}
+            ${row('Domaine', c.tld)}
+            ${row('Téléphone', c.phone)}
+            ${row('Langue', c.language)}
+            ${row('Écriture', c.writing)}
+            ${row('Plaques', c.plates)}
+            ${row('Rue', c.street)}
+            ${row('Distance', c.distance_unit)}
+            ${row('Monnaie', c.currency)}
+            ${row('Voiture', c.car)}
+            ${row('Caméra', c.camera)}
+            ${row('Route', c.road)}
+            ${row('Poteau', c.bollard)}
+            ${row('Pancartes', c.signs)}
+            ${row('Passage piéton', c.crosswalk)}
+            ${row('Notes', c.notes)}
+          </div>`
+        listEl.appendChild(card)
+      })
+    }
+
+    // Global state (loaded list)
+    let ALL = []
+
+    async function refresh(){
+      ALL = await fetchCountries()
+      applyFilters()
+    }
+
+    // Filters
+    function applyFilters(){
+      const q = norm($('#search').value)
+      const cont = $('#continent').value
+      const idx = $('#indexFilter').value
+
+      const filtered = ALL.filter(c => {
+        if (cont && c.continent !== cont) return false
+        if (q) {
+          const blob = [c.name,c.code,c.capital,c.tld,c.phone,c.language,c.writing,c.currency,c.plates]
+            .map(norm).join(' ')
+          if (!blob.includes(q)) return false
+        }
+        if (idx) {
+          const map = { plates:c.plates, language:c.language, road:c.road, currency:c.currency, phone:c.phone, writing:c.writing, bollard:c.bollard, camera:c.camera }
+          if (!map[idx]) return false
+        }
+        return true
+      })
+      render(filtered)
+    }
+
+    ;['search','continent','indexFilter'].forEach(id => {
+      const el = document.getElementById(id)
+      el.addEventListener('input', applyFilters)
+      el.addEventListener('change', applyFilters)
+    })
+
+    // Add dialog
+    const dlg = document.getElementById('addDialog')
+    document.getElementById('openAdd').addEventListener('click', () => dlg.showModal())
+
+    document.getElementById('saveCountry').addEventListener('click', async (e) => {
+      e.preventDefault()
+      const obj = {
+        code: $('#f_code').value.trim().toUpperCase(),
+        name: $('#f_name').value.trim(),
+        continent: $('#f_continent').value.trim() || null,
+        flag: $('#f_flag').value.trim() || null,
+        capital: $('#f_capital').value.trim() || null,
+        tld: $('#f_tld').value.trim() || null,
+        phone: $('#f_phone').value.trim() || null,
+        language: $('#f_language').value.trim() || null,
+        writing: $('#f_writing').value.trim() || null,
+        plates: $('#f_plates').value.trim() || null,
+        street: $('#f_street').value.trim() || null,
+        distance_unit: $('#f_distance_unit').value.trim() || null,
+        currency: $('#f_currency').value.trim() || null,
+        car: $('#f_car').value.trim() || null,
+        camera: $('#f_camera').value.trim() || null,
+        road: $('#f_road').value.trim() || null,
+        bollard: $('#f_bollard').value.trim() || null,
+        signs: $('#f_signs').value.trim() || null,
+        crosswalk: $('#f_crosswalk').value.trim() || null,
+        notes: $('#f_notes').value.trim() || null,
+      }
+      if(!obj.code || !obj.name){ alert('Champs requis: code + nom'); return }
+
+      const { error } = await supabase.from('countries').upsert(obj, { onConflict: 'code' })
+      if(error){ alert('Erreur: ' + error.message); return }
+      dlg.close()
+      await refresh()
+    })
+
+    // boot
+    await refresh()
+  </script>
+</body>
+</html>
