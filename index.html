@@ -11,6 +11,14 @@
     <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">Guide GeoGuessr – Pays</h1>
     <p class="mt-1 text-zinc-600">Recherche + filtres. Données stockées dans une base <span class="font-semibold">Supabase (PostgreSQL)</span>.</p>
 
+    <!-- Authentification Email/Mot de passe -->
+    <div id="authBox" class="flex gap-2 items-center text-sm mt-3">
+        <input id="email" placeholder="email" class="border px-2 py-1 rounded">
+        <input id="password" type="password" placeholder="mot de passe" class="border px-2 py-1 rounded">
+        <button id="loginBtn" class="border px-3 py-1 rounded">Se connecter</button>
+        <button id="logoutBtn" class="border px-3 py-1 rounded hidden">Se déconnecter</button>
+    </div>
+
     <!-- Toolbar -->
     <div class="mt-6 flex flex-col gap-3 md:flex-row md:items-center">
       <div class="flex-1">
@@ -36,7 +44,7 @@
         <option value="bollard">Poteaux/Bornes</option>
         <option value="camera">Caméra</option>
       </select>
-      <button id="openAdd" class="rounded-xl bg-black px-4 py-3 text-white hover:bg-zinc-800">Ajouter un pays</button>
+      <button id="openAdd" class="hidden rounded-xl bg-black px-4 py-3 text-white hover:bg-zinc-800">Ajouter un pays</button>
     </div>
   </header>
 
@@ -151,6 +159,33 @@
     const SUPABASE_URL = 'https://aguweahtwwxoamczhzfv.supabase.co'
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFndXdlYWh0d3d4b2FtY3poemZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDc1NTgsImV4cCI6MjA3NTQyMzU1OH0.19VgxcQPtmFG0Ni41y4_ScItk84kw_ZxPy2NjbbSeW4'
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    // === AUTHENTIFICATION ===
+
+    // UI: montrer/cacher le bouton "Ajouter un pays" selon session
+    function setAuthUI(session){
+        const openAdd = document.getElementById('openAdd')
+        const logoutBtn = document.getElementById('logoutBtn')
+        const loginBtn  = document.getElementById('loginBtn')
+        const email     = document.getElementById('email')
+        const password  = document.getElementById('password')
+
+        const isOn = !!session
+        openAdd.classList.toggle('hidden', !isOn)
+        logoutBtn.classList.toggle('hidden', !isOn)
+        loginBtn.classList.toggle('hidden', isOn)
+        email.classList.toggle('hidden', isOn)
+        password.classList.toggle('hidden', isOn)
+
+        const u = session?.user
+        document.getElementById('status').textContent =
+            isOn ? `Connecté: ${u?.email || 'utilisateur'}` : 'Non connecté'
+}
+
+    // logout
+    document.getElementById('logoutBtn').onclick = async () => {
+    await supabase.auth.signOut()
+    }
 
     // UI helpers
     const $ = (s, r=document) => r.querySelector(s)
