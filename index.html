@@ -160,32 +160,91 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFndXdlYWh0d3d4b2FtY3poemZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4NDc1NTgsImV4cCI6MjA3NTQyMzU1OH0.19VgxcQPtmFG0Ni41y4_ScItk84kw_ZxPy2NjbbSeW4'
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-    // === AUTHENTIFICATION ===
+    // === AUTHENTIFICATION AMÉLIORÉE ===
 
-    // UI: montrer/cacher le bouton "Ajouter un pays" selon session
-    function setAuthUI(session){
-        const openAdd = document.getElementById('openAdd')
-        const logoutBtn = document.getElementById('logoutBtn')
-        const loginBtn  = document.getElementById('loginBtn')
-        const email     = document.getElementById('email')
-        const password  = document.getElementById('password')
+function setBusy(on){ document.body.style.cursor = on ? 'wait' : '' }
 
-        const isOn = !!session
-        openAdd.classList.toggle('hidden', !isOn)
-        logoutBtn.classList.toggle('hidden', !isOn)
-        loginBtn.classList.toggle('hidden', isOn)
-        email.classList.toggle('hidden', isOn)
-        password.classList.toggle('hidden', isOn)
+function setAuthUI(session){
+  const openAdd = document.getElementById('openAdd')
+  const logoutBtn = document.getElementById('logoutBtn')
+  const loginBtn  = document.getElementById('loginBtn')
+  const email     = document.getElementById('email')
+  const password  = document.getElementById('password')
+  const statusEl  = document.getElementById('status')
+  const signupBtn = document.getElementById('signupBtn') // peut être absent
 
-        const u = session?.user
-        document.getElementById('status').textContent =
-            isOn ? `Connecté: ${u?.email || 'utilisateur'}` : 'Non connecté'
+  const isOn = !!session
+  openAdd?.classList.toggle('hidden', !isOn)
+  logoutBtn?.classList.toggle('hidden', !isOn)
+  loginBtn?.classList.toggle('hidden', isOn)
+  email?.classList.toggle('hidden', isOn)
+  password?.classList.toggle('hidden', isOn)
+  signupBtn?.classList.toggle('hidden', isOn)
+
+  const u = session?.user
+  statusEl.textContent = isOn ? `Connecté : ${u?.email || 'utilisateur'}` : 'Non connecté'
 }
 
-    // logout
-    document.getElementById('logoutBtn').onclick = async () => {
-    await supabase.auth.signOut()
+// au chargement
+try {
+  const { data: { session } } = await supabase.auth.getSession()
+  setAuthUI(session)
+} catch (e) {
+  document.getElementById('status').textContent = 'Erreur session: ' + (e?.message || e)
+}
+
+supabase.auth.onAuthStateChange((_e, s) => setAuthUI(s))
+
+// login
+document.getElementById('loginBtn').onclick = async () => {
+  setBusy(true)
+  try {
+    const email = document.getElementById('email').value.trim()
+    const password = document.getElementById('password').value.trim()
+    if(!email || !password){ alert('Entre ton email et mot de passe'); return }
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if(error) {
+      // Messages fréquents plus clairs
+      if (error.message.includes('Invalid login credentials')) {
+        alert("Identifiants invalides. Si c'est ta première fois, clique d'abord sur 'Créer un compte'.")
+      } else if (error.message.toLowerCase().includes('email not confirmed')) {
+        alert("Email non confirmé. Vérifie ta boîte mail ou désactive la confirmation dans Auth → Providers → Email.")
+      } else {
+        alert('Erreur: ' + error.message)
+      }
     }
+  } finally { setBusy(false) }
+}
+
+// OPTIONAL: bouton “Créer un compte”
+if (!document.getElementById('signupBtn')) {
+  // on l’ajoute à côté des boutons si tu ne l’as pas dans le HTML
+  const btn = document.createElement('button')
+  btn.id = 'signupBtn'
+  btn.className = 'border px-3 py-1 rounded'
+  btn.textContent = "Créer un compte"
+  document.getElementById('authBox').insertBefore(btn, document.getElementById('logoutBtn'))
+}
+
+document.getElementById('signupBtn').onclick = async () => {
+  setBusy(true)
+  try {
+    const email = document.getElementById('email').value.trim()
+    const password = document.getElementById('password').value.trim()
+    if(!email || !password){ alert('Entre un email et un mot de passe'); return }
+    const { error } = await supabase.auth.signUp({ email, password })
+    if(error) alert(error.message)
+    else alert('Compte créé. Si la confirmation est activée, clique le lien reçu par email, puis reconnecte-toi.')
+  } finally { setBusy(false) }
+}
+
+// logout
+document.getElementById('logoutBtn').onclick = async () => {
+  setBusy(true)
+  try { await supabase.auth.signOut() } 
+  finally { setBusy(false) }
+}
+
 
     // UI helpers
     const $ = (s, r=document) => r.querySelector(s)
